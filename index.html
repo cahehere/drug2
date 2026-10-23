@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>약 복용 체크표</title>
+  <style>
+    /* 기본 색상과 공통 크기 */
+    :root {
+      --navy: #17324d;
+      --blue: #1261a0;
+      --blue-light: #eaf5ff;
+      --green: #087443;
+      --green-light: #e7f7ee;
+      --red: #a32929;
+      --red-light: #fff0f0;
+      --ink: #17212b;
+      --muted: #536170;
+      --line: #cbd5df;
+      --paper: #ffffff;
+      --bg: #f3f7fa;
+      --radius: 16px;
+    }
+
+    /* 모든 요소의 크기를 계산하기 쉽게 설정 */
+    * { box-sizing: border-box; }
+
+    /* 화면 전체의 기본 글꼴과 색상 */
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      /* 인터넷 없이도 사용할 수 있도록 설치된 Noto Sans KR을 우선 사용 */
+      font-family: "Noto Sans KR", "Noto Sans", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1.6;
+    }
+
+    /* 읽기 좋은 가운데 영역 */
+    .wrap {
+      width: min(100% - 24px, 760px);
+      margin: 0 auto;
+    }
+
+    /* 위쪽 제목 영역 */
+    header {
+      padding: 26px 0 22px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--navy), #245d82);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(30px, 8vw, 42px);
+      line-height: 1.2;
+    }
+
+    header p { margin: 8px 0 0; font-size: 18px; }
+
+    /* 카드형 영역 */
+    .card {
+      margin: 18px 0;
+      padding: 20px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 5px 18px rgba(23, 50, 77, .06);
+    }
+
+    /* 오늘 날짜와 복용률을 크게 보여주는 영역 */
+    .today-card { border-top: 8px solid var(--blue); }
+    .today-date { margin: 0; color: var(--muted); font-weight: 700; }
+    .rate {
+      margin: 5px 0 0;
+      color: var(--blue);
+      font-size: clamp(32px, 9vw, 54px);
+      font-weight: 900;
+      line-height: 1.2;
+    }
+    .sub-rate { margin: 8px 0 0; color: var(--muted); }
+
+    /* 오늘 복용률을 시각적으로 보여주는 막대 */
+    .progress-track {
+      width: 100%;
+      height: 24px;
+      margin-top: 16px;
+      overflow: hidden;
+      background: #e1e8ee;
+      border: 2px solid #b4c3ce;
+      border-radius: 999px;
+    }
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: var(--green);
+      border-radius: inherit;
+      transition: width .25s ease;
+    }
+
+    /* 개발 중 날짜 변경을 시험하기 위한 임시 영역 */
+    .dev-tools {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed #d2a63c;
+    }
+    .dev-label { margin: 0 0 8px; color: #765600; font-size: 16px; font-weight: 700; }
+    button.dev-button { color: #4f3c00; background: #fff0b8; border: 2px solid #d2a63c; }
+
+    /* 섹션 제목 */
+    h2 { margin: 0 0 14px; color: var(--navy); font-size: 26px; line-height: 1.3; }
+    h3 { margin: 0 0 10px; color: var(--blue); font-size: 23px; }
+
+    /* 안내와 오류 메시지 */
+    .message {
+      display: none;
+      margin: 0 0 16px;
+      padding: 13px 15px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+    .message.show { display: block; }
+    .message.error { color: var(--red); background: var(--red-light); border: 1px solid #e3b2b2; }
+    .message.success { color: var(--green); background: var(--green-light); border: 1px solid #abd9bd; }
+
+    /* 아침·점심·저녁 구역 */
+    .periods { display: grid; gap: 14px; }
+    .period {
+      padding: 16px;
+      background: #fbfdff;
+      border: 2px solid #b8d4e8;
+      border-radius: 14px;
+    }
+    .period-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .period-count { color: var(--muted); font-size: 16px; font-weight: 700; }
+    .medicine-list { display: grid; gap: 8px; margin-top: 10px; }
+    .medicine-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 58px;
+      padding: 10px 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .medicine-row.taken {
+      background: var(--green-light);
+      border: 2px solid #62b989;
+    }
+    .medicine-name { flex: 1; font-size: 20px; font-weight: 800; }
+    .empty { margin: 8px 0 0; color: var(--muted); }
+
+    /* 체크박스를 손가락으로 누르기 쉽게 크게 설정 */
+    input[type="checkbox"] {
+      width: 32px;
+      height: 32px;
+      flex: 0 0 32px;
+      accent-color: var(--green);
+      cursor: pointer;
+    }
+
+    /* 입력 폼 */
+    label { display: block; margin: 14px 0 6px; color: var(--navy); font-weight: 700; }
+    input[type="text"] {
+      width: 100%;
+      min-height: 54px;
+      padding: 10px 13px;
+      color: var(--ink);
+      background: #fff;
+      border: 2px solid #91a5b7;
+      border-radius: 10px;
+      font: inherit;
+    }
+    input[type="text"]:focus { outline: 4px solid #bfe3ff; border-color: var(--blue); }
+    .time-options { display: flex; flex-wrap: wrap; gap: 10px; }
+    .time-option {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 50px;
+      padding: 7px 12px;
+      background: var(--blue-light);
+      border: 2px solid #a8cbe5;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .time-option input { width: 28px; height: 28px; }
+
+    /* 큰 버튼 */
+    .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    button {
+      min-height: 54px;
+      padding: 10px 17px;
+      color: #fff;
+      background: var(--blue);
+      border: 0;
+      border-radius: 10px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(.94); }
+    button:focus-visible { outline: 4px solid #bfe3ff; outline-offset: 2px; }
+    button.secondary { color: var(--navy); background: #e5eef5; }
+    button.danger { min-height: 44px; padding: 7px 12px; color: var(--red); background: var(--red-light); border: 1px solid #dfa7a7; font-size: 16px; }
+
+    /* 등록된 약 목록 */
+    .registered-list { display: grid; gap: 8px; margin-top: 16px; }
+    .registered-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+    }
+    .registered-info { flex: 1; }
+    .registered-times { color: var(--muted); font-size: 16px; }
+
+    /* 최근 7일 표는 작은 화면에서 가로로 밀어 볼 수 있게 설정 */
+    .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+    table { min-width: 620px; width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { padding: 11px 12px; text-align: center; white-space: nowrap; border-bottom: 1px solid var(--line); }
+    th { color: #fff; background: var(--navy); }
+    th:first-child, td:first-child { text-align: left; position: sticky; left: 0; }
+    td:first-child { background: #f8fbfd; font-weight: 700; }
+    tr:last-child td { border-bottom: 0; }
+    .dot { color: var(--green); font-size: 27px; font-weight: 900; line-height: 1; }
+    .history-note { margin: 10px 0 0; color: var(--muted); font-size: 16px; }
+
+    /* 화면 아래 안내 문구 */
+    footer { padding: 10px 0 35px; color: var(--muted); text-align: center; font-size: 18px; font-weight: 700; }
+
+    @media (max-width: 520px) {
+      .wrap { width: min(100% - 16px, 760px); }
+      .card { padding: 16px 13px; }
+      .registered-row { align-items: flex-start; }
+      .button-row button { flex: 1 1 100%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>💊 약 복용 체크표</h1>
+      <p>📅 오늘 먹을 약을 확인하고 복용 여부를 기록하세요.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- 오늘 날짜와 오늘 복용률을 보여주는 영역 -->
+    <section class="card today-card" aria-labelledby="todayTitle">
+      <h2 id="todayTitle" class="today-date">📅 오늘</h2>
+      <p id="rateText" class="rate">📊 0/0 완료, 0%</p>
+      <p id="rateDetail" class="sub-rate">💊 등록된 약이 없습니다.</p>
+      <div class="progress-track" role="progressbar" aria-label="오늘 복용률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="progressBar" class="progress-bar"></div>
+      </div>
+
+      <!-- 개발용 임시 버튼: 테스트가 끝나면 이 영역과 연결 코드를 삭제하세요. -->
+      <div class="dev-tools">
+        <p class="dev-label">개발용 테스트</p>
+        <button id="nextDayButton" type="button" class="dev-button">⏭️ 날짜를 하루 넘기기</button>
+      </div>
+    </section>
+
+    <!-- 사용자가 결과를 바로 알 수 있도록 안내 메시지를 보여주는 영역 -->
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <!-- 오늘 먹을 약을 아침·점심·저녁으로 나누어 보여주는 영역 -->
+    <section class="card" aria-labelledby="todayMedicineTitle">
+      <h2 id="todayMedicineTitle">🗓️ 오늘 먹을 약</h2>
+      <div id="periods" class="periods"></div>
+    </section>
+
+    <!-- 최근 7일 기록을 읽기 전용 표로 보여주는 영역 -->
+    <section class="card" aria-labelledby="historyTitle">
+      <h2 id="historyTitle">📈 최근 7일 기록</h2>
+      <div class="table-scroll">
+        <table id="historyTable">
+          <caption class="visually-hidden">날짜별 약 복용 기록</caption>
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="history-note">● 먹음 · 빈칸은 기록 없음 또는 먹지 않음입니다. 지난 날짜는 보기만 할 수 있습니다.</p>
+      <div class="button-row">
+        <button id="downloadCsvButton" type="button" class="secondary">📥 최근 7일 CSV 내려받기</button>
+      </div>
+    </section>
+
+    <!-- 약을 새로 등록하는 영역 -->
+    <section class="card" aria-labelledby="registerTitle">
+      <h2 id="registerTitle">➕ 약 등록하기</h2>
+      <form id="medicineForm" novalidate>
+        <label for="medicineName">약 이름</label>
+        <input id="medicineName" type="text" maxlength="60" placeholder="예: 혈압약" autocomplete="off">
+
+        <label>먹는 때 (여러 개 선택 가능)</label>
+        <div class="time-options">
+          <label class="time-option"><input type="checkbox" name="period" value="아침"> 아침</label>
+          <label class="time-option"><input type="checkbox" name="period" value="점심"> 점심</label>
+          <label class="time-option"><input type="checkbox" name="period" value="저녁"> 저녁</label>
+        </div>
+
+        <div class="button-row">
+          <button type="submit">➕ 약 등록하기</button>
+          <button id="exampleButton" type="button" class="secondary">🧪 예제 약 불러오기</button>
+        </div>
+      </form>
+
+      <h3>📋 등록된 약</h3>
+      <div id="registeredList" class="registered-list"></div>
+    </section>
+  </main>
+
+  <footer class="wrap">⚠️ 이 앱은 기록용입니다. 복용법은 의사·약사의 안내를 따르세요.</footer>
+
+  <script>
+    /* 저장할 때 사용할 localStorage 이름 */
+    const STORAGE_KEY = "medicine-check-table-v1";
+
+    /* 화면에서 사용할 시간대 순서 */
+    const PERIODS = ["아침", "점심", "저녁"];
+
+    /* 시간대별로 쉽게 구분할 수 있는 이모티콘 */
+    const PERIOD_EMOJI = { 아침: "🌅", 점심: "☀️", 저녁: "🌙" };
+
+    /* 샘플 버튼으로 한 번에 넣을 예제 약 4개 */
+    const EXAMPLE_MEDICINES = [
+      { name: "혈압약", periods: ["아침"] },
+      { name: "비타민", periods: ["아침", "점심"] },
+      { name: "관절약", periods: ["점심", "저녁"] },
+      { name: "위장약", periods: ["저녁"] }
+    ];
+
+    /* 개발용 날짜 이동 버튼이 화면에 보여줄 날짜 */
+    let displayDate = null;
+
+    /* 오늘 날짜를 YYYY-MM-DD 형식으로 가져오기 */
+    function getTodayKey() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    /* 화면에 표시하기 좋은 날짜 */
+    function formatDate(dateKey) {
+      const [year, month, day] = dateKey.split("-");
+      return `${year}년 ${Number(month)}월 ${Number(day)}일`;
+    }
+
+    /* YYYY-MM-DD 날짜를 하루 이동 */
+    function addDays(dateKey, amount) {
+      const date = new Date(`${dateKey}T12:00:00`);
+      date.setDate(date.getDate() + amount);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    }
+
+    /* 새 데이터 구조를 만들고, 저장된 데이터가 없으면 시작 */
+    function createEmptyState() {
+      return {
+        lastDate: getTodayKey(),
+        medicines: [],
+        todayChecks: {},
+        history: {}
+      };
+    }
+
+    /* localStorage에서 데이터를 읽고, 문제가 있으면 빈 상태로 시작 */
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return createEmptyState();
+        const parsed = JSON.parse(saved);
+        return {
+          lastDate: parsed.lastDate || getTodayKey(),
+          medicines: Array.isArray(parsed.medicines) ? parsed.medicines : [],
+          todayChecks: parsed.todayChecks && typeof parsed.todayChecks === "object" ? parsed.todayChecks : {},
+          history: parsed.history && typeof parsed.history === "object" ? parsed.history : {}
+        };
+      } catch (error) {
+        return createEmptyState();
+      }
+    }
+
+    /* 현재 상태를 브라우저에 저장 */
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    /* 약 ID를 만들 때 사용하는 간단한 고유값 */
+    function createMedicineId() {
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    /* 날짜가 바뀌었으면 이전 날짜의 체크 결과를 보관하고 오늘을 새로 시작 */
+    function handleDateChange() {
+      const today = getTodayKey();
+      if (state.lastDate === today) return;
+
+      /* 마지막으로 앱을 사용한 날짜의 체크 상태를 기록으로 옮김 */
+      state.history[state.lastDate] = { ...state.todayChecks };
+
+      /* 새 날짜는 모든 약을 미체크 상태로 시작 */
+      state.todayChecks = {};
+      state.lastDate = today;
+      saveState();
+    }
+
+    /* 메시지를 화면에 표시 */
+    function showMessage(text, type = "success") {
+      message.textContent = text;
+      message.className = `message show ${type}`;
+      window.clearTimeout(showMessage.timer);
+      showMessage.timer = window.setTimeout(() => {
+        message.className = "message";
+      }, 4000);
+    }
+
+    /* 오늘 체크 상태를 약 ID로 확인 */
+    function isChecked(medicineId) {
+      return state.todayChecks[medicineId] === true;
+    }
+
+    /* 화면 요소를 먼저 찾아 둔 뒤 버튼과 폼의 동작을 연결 */
+    const message = document.getElementById("message");
+    const todayTitle = document.getElementById("todayTitle");
+    const rateText = document.getElementById("rateText");
+    const rateDetail = document.getElementById("rateDetail");
+    const progressTrack = document.querySelector(".progress-track");
+    const progressBar = document.getElementById("progressBar");
+    const periods = document.getElementById("periods");
+    const registeredList = document.getElementById("registeredList");
+    const historyTable = document.getElementById("historyTable");
+    const medicineForm = document.getElementById("medicineForm");
+    const medicineName = document.getElementById("medicineName");
+    const exampleButton = document.getElementById("exampleButton");
+    const nextDayButton = document.getElementById("nextDayButton");
+    const downloadCsvButton = document.getElementById("downloadCsvButton");
+
+    /* 시간대별 오늘 약 목록을 다시 그리기 */
+    function renderTodayMedicines() {
+      periods.innerHTML = "";
+
+      PERIODS.forEach((period) => {
+        const medicines = state.medicines.filter((medicine) => medicine.periods.includes(period));
+        const section = document.createElement("section");
+        section.className = "period";
+        section.innerHTML = `
+          <div class="period-title">
+            <h3>${PERIOD_EMOJI[period]} ${period}</h3>
+            <span class="period-count">${medicines.length}개</span>
+          </div>
+          <div class="medicine-list"></div>
+        `;
+
+        const list = section.querySelector(".medicine-list");
+        if (medicines.length === 0) {
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.textContent = "💊 등록된 약이 없습니다.";
+          list.appendChild(empty);
+        } else {
+          medicines.forEach((medicine) => {
+            const checkKey = `${medicine.id}::${period}`;
+            const row = document.createElement("label");
+            row.className = `medicine-row${isChecked(checkKey) ? " taken" : ""}`;
+            row.innerHTML = `
+              <input type="checkbox" data-check-key="${checkKey}" ${isChecked(checkKey) ? "checked" : ""}>
+              <span class="medicine-name"></span>
+            `;
+            row.querySelector(".medicine-name").textContent = medicine.name;
+            row.querySelector("input").addEventListener("change", (event) => {
+              state.todayChecks[checkKey] = event.target.checked;
+              saveState();
+              renderAll();
+            });
+            list.appendChild(row);
+          });
+        }
+        periods.appendChild(section);
+      });
+    }
+
+    /* 오늘 복용률 계산과 날짜 표시 */
+    function renderRate() {
+      const total = state.medicines.reduce((count, medicine) => count + medicine.periods.length, 0);
+      const completed = state.medicines.reduce((count, medicine) => {
+        return count + medicine.periods.filter((period) => state.todayChecks[`${medicine.id}::${period}`] === true).length;
+      }, 0);
+
+      /* 한 약이 여러 시간대에 등록되었을 때 시간대별 체크를 따로 계산 */
+      const percent = total === 0 ? 0 : Math.round((completed / total) * 100);
+      rateText.textContent = `📊 ${completed}/${total} 완료, ${percent}%`;
+      rateDetail.textContent = total === 0 ? "💊 등록된 약이 없습니다." : "✅ 오늘 등록된 복용 시간 기준입니다.";
+      todayTitle.textContent = `📅 오늘 · ${formatDate(displayDate)}`;
+      progressBar.style.width = `${percent}%`;
+      progressTrack.setAttribute("aria-valuenow", String(percent));
+    }
+
+    /* 약 목록을 등록된 약 영역에 표시 */
+    function renderRegisteredMedicines() {
+      registeredList.innerHTML = "";
+      if (state.medicines.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "💊 아직 등록된 약이 없습니다.";
+        registeredList.appendChild(empty);
+        return;
+      }
+
+      state.medicines.forEach((medicine) => {
+        const row = document.createElement("div");
+        row.className = "registered-row";
+        row.innerHTML = `
+          <div class="registered-info">
+            <strong class="registered-name"></strong>
+            <div class="registered-times"></div>
+          </div>
+          <button type="button" class="danger" data-delete-id="${medicine.id}">🗑️ 삭제</button>
+        `;
+        row.querySelector(".registered-name").textContent = medicine.name;
+        row.querySelector(".registered-times").textContent = medicine.periods.join(" · ");
+        row.querySelector("button").addEventListener("click", () => deleteMedicine(medicine.id));
+        registeredList.appendChild(row);
+      });
+    }
+
+    /* 최근 7일 표를 만들기: 세로는 날짜, 가로는 약 이름 */
+    function renderHistory() {
+      const head = historyTable.querySelector("thead");
+      const body = historyTable.querySelector("tbody");
+      head.innerHTML = "";
+      body.innerHTML = "";
+
+      const headRow = document.createElement("tr");
+      const dateHead = document.createElement("th");
+      dateHead.textContent = "날짜";
+      headRow.appendChild(dateHead);
+      state.medicines.forEach((medicine) => {
+        const th = document.createElement("th");
+        th.textContent = medicine.name;
+        headRow.appendChild(th);
+      });
+      head.appendChild(headRow);
+
+      for (let offset = 0; offset < 7; offset += 1) {
+        const date = new Date(`${displayDate}T12:00:00`);
+        date.setDate(date.getDate() - offset);
+        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        const row = document.createElement("tr");
+        const dateCell = document.createElement("td");
+        dateCell.textContent = offset === 0 ? `${dateKey} (오늘)` : dateKey;
+        row.appendChild(dateCell);
+
+        const checks = offset === 0 ? state.todayChecks : (state.history[dateKey] || {});
+        state.medicines.forEach((medicine) => {
+          const cell = document.createElement("td");
+          const medicineWasTaken = medicine.periods.some((period) => checks[`${medicine.id}::${period}`] === true);
+          if (medicineWasTaken) {
+            const dot = document.createElement("span");
+            dot.className = "dot";
+            dot.textContent = "●";
+            dot.setAttribute("aria-label", "먹음");
+            cell.appendChild(dot);
+          } else {
+            cell.textContent = "";
+          }
+          row.appendChild(cell);
+        });
+        body.appendChild(row);
+      }
+    }
+
+    /* CSV 안에서 쉼표·따옴표·줄바꿈이 안전하게 보이도록 값을 감쌈 */
+    function csvCell(value) {
+      const text = String(value ?? "");
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    /* 최근 7일 기록을 날짜·약이름·시간대·복용여부 열로 내려받기 */
+    function downloadRecentCsv() {
+      const rows = [["날짜", "약이름", "시간대", "복용여부(O/X)"]];
+
+      for (let offset = 0; offset < 7; offset += 1) {
+        const date = new Date(`${displayDate}T12:00:00`);
+        date.setDate(date.getDate() - offset);
+        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        const checks = offset === 0 ? state.todayChecks : (state.history[dateKey] || {});
+
+        state.medicines.forEach((medicine) => {
+          medicine.periods.forEach((period) => {
+            const checkKey = `${medicine.id}::${period}`;
+            rows.push([dateKey, medicine.name, period, checks[checkKey] === true ? "O" : "X"]);
+          });
+        });
+      }
+
+      /* UTF-8 BOM을 맨 앞에 붙여 엑셀에서도 한글이 깨지지 않게 함 */
+      const csvText = "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `약_복용_기록_${displayDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      showMessage("최근 7일 CSV 파일을 내려받았습니다.");
+    }
+
+    /* CSV 내려받기 버튼 동작 연결 */
+    downloadCsvButton.addEventListener("click", downloadRecentCsv);
+
+    /* 화면 전체를 현재 상태로 다시 그리기 */
+    function renderAll() {
+      renderRate();
+      renderTodayMedicines();
+      renderRegisteredMedicines();
+      renderHistory();
+    }
+
+    /* 약 등록: 이름과 시간대를 확인한 뒤 저장 */
+    medicineForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const name = medicineName.value.trim();
+      const selectedPeriods = [...document.querySelectorAll('input[name="period"]:checked')].map((input) => input.value);
+
+      if (!name) {
+        showMessage("약 이름을 입력해 주세요.", "error");
+        medicineName.focus();
+        return;
+      }
+      if (selectedPeriods.length === 0) {
+        showMessage("먹는 때를 하나 이상 선택해 주세요.", "error");
+        return;
+      }
+
+      state.medicines.push({ id: createMedicineId(), name, periods: selectedPeriods });
+      saveState();
+      medicineForm.reset();
+      renderAll();
+      showMessage("약을 등록했습니다.");
+    });
+
+    /* 약 삭제: 확인한 경우에만 삭제 */
+    function deleteMedicine(medicineId) {
+      const medicine = state.medicines.find((item) => item.id === medicineId);
+      if (!medicine) return;
+      if (!window.confirm(`‘${medicine.name}’을(를) 삭제할까요?`)) return;
+
+      state.medicines = state.medicines.filter((item) => item.id !== medicineId);
+      Object.keys(state.todayChecks).forEach((key) => {
+        if (key.startsWith(`${medicineId}::`)) delete state.todayChecks[key];
+      });
+      saveState();
+      renderAll();
+      showMessage("약을 삭제했습니다.");
+    }
+
+    /* 예제 약 4개를 넣기: 기존 약은 지우지 않고 없는 이름만 추가 */
+    exampleButton.addEventListener("click", () => {
+      EXAMPLE_MEDICINES.forEach((example) => {
+        const alreadyExists = state.medicines.some((medicine) => medicine.name === example.name);
+        if (!alreadyExists) {
+          state.medicines.push({ id: createMedicineId(), name: example.name, periods: example.periods });
+        }
+      });
+      saveState();
+      renderAll();
+      showMessage("예제 약 4개를 불러왔습니다.");
+    });
+
+    /* 개발용: 오늘 체크를 현재 날짜 기록으로 옮기고 화면 날짜만 하루 이동 */
+    nextDayButton.addEventListener("click", () => {
+      state.history[displayDate] = { ...state.todayChecks };
+      state.todayChecks = {};
+      displayDate = addDays(displayDate, 1);
+      saveState();
+      renderAll();
+      showMessage(`개발용 테스트: ${formatDate(displayDate)}로 하루 넘겼습니다.`);
+    });
+
+    /* 앱을 시작할 때 저장 데이터와 날짜를 확인 */
+    let state = loadState();
+    handleDateChange();
+    displayDate = state.lastDate;
+    renderAll();
+  </script>
+</body>
+</html>
+
